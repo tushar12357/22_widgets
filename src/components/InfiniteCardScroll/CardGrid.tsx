@@ -1,5 +1,5 @@
 // CardGrid.tsx
-import React, { memo, useState } from "react";
+import React, { memo, useRef, useState } from "react";
 import { Card } from "./Card";
 import { AgentDetail } from "./AgentDetail";
 import type { CardInterface } from "../../types";
@@ -24,14 +24,18 @@ export const CardGrid: React.FC<CardGridProps> = memo(
     showRealEstateAgentVoice,
     sessionStatus,
   }) => {
-    const [selectedAgent, setSelectedAgent] = useState<CardInterface | null>(null);
+    const [selectedAgent, setSelectedAgent] = useState<CardInterface | null>(
+      null
+    );
     const [agentName, setAgentName] = useState<string | null>(null);
+    const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
     const openAgentDetail = (agent: CardInterface) => {
       setSelectedAgent(agent);
       setAgentName(agent.title);
-      // Optional: scroll to top when opening detail
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // Scroll to the card first so it's visible
+      const cardElement = cardRefs.current[agent.id];
+      cardElement?.scrollIntoView({ behavior: "smooth", block: "center" });
     };
 
     const closeAgentDetail = () => {
@@ -39,7 +43,12 @@ export const CardGrid: React.FC<CardGridProps> = memo(
       setAgentName(null);
     };
 
-    // Show detail view if an agent is selected
+    // Get the DOM element of the currently active/selected card
+    const getSelectedCardElement = (): HTMLElement | null => {
+      if (!selectedAgent) return null;
+      return cardRefs.current[selectedAgent.id] || null;
+    };
+
     if (selectedAgent) {
       return (
         <div className="agent-detail-wrapper">
@@ -55,20 +64,29 @@ export const CardGrid: React.FC<CardGridProps> = memo(
               onClose={handleEnd}
               sessionStatus={sessionStatus}
               agentName={agentName ?? undefined}
+              anchorElement={getSelectedCardElement()} // ← pass the card DOM node
             />
           )}
         </div>
       );
     }
 
-    // Grid view (default)
     return (
       <div className={`card-grid-wrapper relative ${className}`}>
-        {showRealEstateAgentVoice && (
+        {/* Show voice bar even in grid mode if a session is active */}
+        {showRealEstateAgentVoice && !selectedAgent && (
           <RealEstateAgentVoice
             onClose={handleEnd}
             sessionStatus={sessionStatus}
             agentName={agentName ?? undefined}
+            // You can optionally anchor it to the card that started the session
+            anchorElement={
+              agentName
+                ? cardRefs.current[
+                    cards.find((c) => c.title === agentName)?.id || ""
+                  ] || null
+                : null
+            }
           />
         )}
 
@@ -76,6 +94,7 @@ export const CardGrid: React.FC<CardGridProps> = memo(
           {cards.map((card) => (
             <div
               key={card.id}
+              ref={(el) => (cardRefs.current[card.id] = el)} // ← assign ref
               className="card-grid-item"
               role="button"
               tabIndex={0}
@@ -93,7 +112,7 @@ export const CardGrid: React.FC<CardGridProps> = memo(
                 handleStart={handleStart}
                 handleEnd={handleEnd}
                 getAgentName={setAgentName}
-                onAgentSelect={() => {}} // not used here
+                onAgentSelect={() => {}}
               />
             </div>
           ))}

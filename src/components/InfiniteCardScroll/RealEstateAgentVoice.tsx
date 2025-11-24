@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, ChevronUp } from "lucide-react";
 import AudioWaveform from "./AudioWaveform";
 
+// RealEstateAgentVoice.tsx
 interface RealEstateAgentVoiceProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   onClose?: () => void;
   sessionStatus?: string | undefined | null;
   agentName?: string | undefined | null;
+  anchorElement?: HTMLElement | null; // ← new prop
 }
 
 const RealEstateAgentVoice: React.FC<RealEstateAgentVoiceProps> = ({
@@ -16,50 +18,78 @@ const RealEstateAgentVoice: React.FC<RealEstateAgentVoiceProps> = ({
   onClose,
   sessionStatus,
   agentName,
+  anchorElement,
 }) => {
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Format timer display as MM:SS
   const formatDuration = (s: number): string => {
     const mins = Math.floor(s / 60);
     const secs = s % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // Start timer when agentName is present
   useEffect(() => {
     if (agentName) {
-      setSeconds(0); // reset
+      setSeconds(0);
       intervalRef.current = setInterval(() => {
         setSeconds((prev) => prev + 1);
       }, 1000);
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [agentName]);
 
-  // Stop timer on close
   const handleClose = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
     onClose?.();
   };
 
+  // Dynamic styles based on anchor
+  const getPositionStyle = (): React.CSSProperties => {
+    if (!anchorElement || !containerRef.current) {
+      // Fallback: center bottom like before
+      return {
+        position: "fixed",
+        bottom: 16,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 50,
+      };
+    }
+
+    const rect = anchorElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // If card is in lower half of screen → place above it
+    // If card is in upper half → place below it
+    const spaceBelow = viewportHeight - rect.bottom;
+    const shouldPlaceAbove = spaceBelow < 120; // not enough space below
+
+    return {
+      position: "fixed",
+      left: rect.left + rect.width / 2,
+      [shouldPlaceAbove ? "bottom" : "top"]: shouldPlaceAbove
+        ? viewportHeight - rect.top + 12
+        : rect.bottom + 12,
+      transform: "translateX(-50%)",
+      zIndex: 50,
+    };
+  };
+
   return (
-    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-50 px-4 max-w-full">
-      <div className="bg-black text-white rounded-full flex items-center pl-3 pr-1 py-1 shadow-lg">
+    <div
+      ref={containerRef}
+      style={getPositionStyle()}
+      className="flex items-center gap-2 pointer-events-auto"
+    >
+      <div className="bg-black text-white rounded-full flex items-center pl-3 pr-1 py-1 shadow-2xl border border-gray-800">
         <div className="flex items-center gap-2">
           <AudioWaveform />
           <span className="text-sm font-medium whitespace-nowrap">
-            {agentName}
+            {agentName || "Agent"}
           </span>
           <span className="text-xs text-gray-400 ml-1">
             {formatDuration(seconds)}
@@ -78,6 +108,7 @@ const RealEstateAgentVoice: React.FC<RealEstateAgentVoiceProps> = ({
           </button>
         </div>
       </div>
+
       <button
         onClick={handleClose}
         className="bg-red-500 hover:bg-red-600 transition-colors p-2 rounded-full shadow-lg"

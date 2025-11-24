@@ -17,6 +17,7 @@ export const Card: React.FC<CardProps> = ({
   getAgentName,
   onAgentSelect,
 }) => {
+  
   const Icon = card.icon;
   const handleCardClick = () => {
     if (onAgentSelect) {
