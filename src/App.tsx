@@ -86,6 +86,7 @@ function App() {
 
   return (
     <div className="max-w-10xl mx-auto">
+      <h6>gourav</h6>
       <CardGrid
         cards={mockCards}
         handleStart={handleStart}
